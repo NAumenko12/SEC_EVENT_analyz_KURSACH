@@ -1,6 +1,6 @@
 # Security Event Analyzer
 
-Security Event Analyzer — учебная mini-SIEM на C++. Пользователь загружает
+Security Event Analyzer  mini-SIEM на C++. Пользователь загружает
 журнал безопасности или сетевой дамп, система разбирает данные, приводит события
 к единому виду, ищет признаки подозрительной активности и формирует понятный
 отчёт с уровнем риска и рекомендациями.
@@ -103,10 +103,6 @@ make help
 ```
 
 ## Состояние проекта
-
-- спроектирована реляционная схема PostgreSQL;
-- создан каркас API, worker и frontend;
-- подготовлены локальные контейнеры PostgreSQL и Apache Kafka в режиме KRaft.
-
-Следующий этап — подключение Drogon API к PostgreSQL и реализация
-`GET /api/source-types`.
+спроектирована реляционная схема PostgreSQL;  
+создан каркас API, worker и frontend;  
+подготовлены локальные контейнеры PostgreSQL и Apache Kafka. 
