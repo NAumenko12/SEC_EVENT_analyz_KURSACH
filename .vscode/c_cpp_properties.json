@@ -1,0 +1,34 @@
+{
+  "configurations": [
+    {
+      "name": "macOS Apple Silicon",
+      "compilerPath": "/usr/bin/clang++",
+      "cStandard": "c17",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "macos-clang-arm64",
+      "includePath": [
+        "${workspaceFolder}/shared/include",
+        "/opt/homebrew/opt/drogon/include",
+        "/opt/homebrew/opt/jsoncpp/include",
+        "/opt/homebrew/opt/openssl@3/include",
+        "/opt/homebrew/include"
+      ],
+      "browse": {
+        "path": [
+          "${workspaceFolder}/backend",
+          "${workspaceFolder}/worker",
+          "${workspaceFolder}/shared/include",
+          "/opt/homebrew/opt/drogon/include",
+          "/opt/homebrew/opt/jsoncpp/include",
+          "/opt/homebrew/opt/openssl@3/include",
+          "/opt/homebrew/include"
+        ],
+        "limitSymbolsToIncludedHeaders": true
+      },
+      "macFrameworkPath": [
+        "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks"
+      ]
+    }
+  ],
+  "version": 4
+}

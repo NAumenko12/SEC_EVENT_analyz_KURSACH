@@ -1,0 +1,23 @@
+# Build output
+build/
+out/
+
+# Secrets and local settings
+.env
+*.local
+
+# Frontend dependencies and output
+frontend/node_modules/
+frontend/dist/
+
+# Runtime data
+data/uploads/
+*.log
+
+# IDE and OS files
+.idea/
+.DS_Store
+
+# Temporary files
+*.tmp
+*.swp
