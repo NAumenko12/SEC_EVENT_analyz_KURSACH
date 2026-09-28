@@ -592,6 +592,21 @@ VALUES
     ('user', 'Пользователь'),
     ('admin', 'Администратор');
 
+INSERT INTO users (
+    fk_role_code,
+    username,
+    email,
+    password_hash,
+    is_active
+)
+VALUES (
+    'user',
+    'local_desktop',
+    'local-desktop@localhost.invalid',
+    'LOGIN_DISABLED',
+    FALSE
+);
+
 INSERT INTO source_types (code, name, description)
 VALUES
     ('auth_log', 'Linux auth.log', 'Журнал аутентификации Linux, SSH и sudo'),

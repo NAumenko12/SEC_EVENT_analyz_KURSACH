@@ -7,8 +7,10 @@
       "cppStandard": "c++17",
       "intelliSenseMode": "macos-clang-arm64",
       "includePath": [
+        "${workspaceFolder}/backend/include",
         "${workspaceFolder}/shared/include",
         "/opt/homebrew/opt/drogon/include",
+        "/opt/homebrew/opt/libpq/include",
         "/opt/homebrew/opt/jsoncpp/include",
         "/opt/homebrew/opt/openssl@3/include",
         "/opt/homebrew/include"
@@ -19,6 +21,7 @@
           "${workspaceFolder}/worker",
           "${workspaceFolder}/shared/include",
           "/opt/homebrew/opt/drogon/include",
+          "/opt/homebrew/opt/libpq/include",
           "/opt/homebrew/opt/jsoncpp/include",
           "/opt/homebrew/opt/openssl@3/include",
           "/opt/homebrew/include"

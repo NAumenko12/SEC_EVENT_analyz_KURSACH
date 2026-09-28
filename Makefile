@@ -1,11 +1,12 @@
 CXX ?= c++
 
-CPPFLAGS := -Ishared/include
+CPPFLAGS := -Ishared/include -Ibackend/include
 CXXFLAGS ?= -std=c++17 -Wall -Wextra -Wpedantic -O2
 LDFLAGS ?=
+NPM ?= npm
 
 BUILD_DIR := build
-BACKEND_SOURCE := backend/src/main.cpp
+BACKEND_SOURCES := $(wildcard backend/src/*.cpp)
 WORKER_SOURCE := worker/src/main.cpp
 BACKEND_TARGET := $(BUILD_DIR)/security_analyzer_api
 WORKER_TARGET := $(BUILD_DIR)/security_analyzer_worker
@@ -19,16 +20,35 @@ DROGON_LIBS := -L$(DROGON_PREFIX)/lib \
 	$(shell pkg-config --libs jsoncpp openssl 2>/dev/null) \
 	-lz -lsqlite3
 
-.PHONY: all backend worker run-backend run-worker check-drogon clean help
+LIBPQ_PREFIX ?= $(shell brew --prefix libpq 2>/dev/null)
+LIBPQ_CFLAGS := -I$(LIBPQ_PREFIX)/include
+LIBPQ_LIBS := -L$(LIBPQ_PREFIX)/lib \
+	-Wl,-rpath,$(LIBPQ_PREFIX)/lib \
+	-lpq
+
+RUSTUP_PREFIX ?= $(shell brew --prefix rustup 2>/dev/null)
+
+.PHONY: all backend worker frontend frontend-lint desktop run-backend run-worker \
+	check-drogon check-libpq check-node check-rust clean help
 
 all: worker backend
 
-backend: check-drogon $(BACKEND_TARGET)
+backend: check-drogon check-libpq $(BACKEND_TARGET)
 
 worker: $(WORKER_TARGET)
 
-$(BACKEND_TARGET): $(BACKEND_SOURCE) | $(BUILD_DIR)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DROGON_CFLAGS) $< -o $@ $(LDFLAGS) $(DROGON_LIBS)
+frontend: check-node
+	cd frontend && $(NPM) run build
+
+frontend-lint: check-node
+	cd frontend && $(NPM) run lint
+
+desktop: check-node check-rust
+	cd frontend && PATH="$(RUSTUP_PREFIX)/bin:$$PATH" \
+		$(NPM) run tauri build -- --debug
+
+$(BACKEND_TARGET): $(BACKEND_SOURCES) | $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DROGON_CFLAGS) $(LIBPQ_CFLAGS) $^ -o $@ $(LDFLAGS) $(DROGON_LIBS) $(LIBPQ_LIBS)
 
 $(WORKER_TARGET): $(WORKER_SOURCE) | $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
@@ -55,6 +75,35 @@ check-drogon:
 		exit 1; \
 	}
 
+check-libpq:
+	@test -f "$(LIBPQ_PREFIX)/include/libpq-fe.h" || { \
+		echo "Ошибка: заголовочные файлы libpq не найдены."; \
+		echo "Установите libpq командой brew install libpq."; \
+		exit 1; \
+	}
+	@test -f "$(LIBPQ_PREFIX)/lib/libpq.dylib" || { \
+		echo "Ошибка: библиотека libpq не найдена."; \
+		exit 1; \
+	}
+
+check-node:
+	@command -v $(NPM) >/dev/null 2>&1 || { \
+		echo "Ошибка: npm не найден. Установите Node.js."; \
+		exit 1; \
+	}
+	@test -d frontend/node_modules || { \
+		echo "Ошибка: зависимости frontend не установлены."; \
+		echo "Выполните cd frontend && npm install."; \
+		exit 1; \
+	}
+
+check-rust:
+	@test -x "$(RUSTUP_PREFIX)/bin/cargo" || { \
+		echo "Ошибка: Rust toolchain не найден."; \
+		echo "Установите rustup и stable toolchain."; \
+		exit 1; \
+	}
+
 run-backend: backend
 	./$(BACKEND_TARGET)
 
@@ -69,6 +118,9 @@ help:
 	@echo "  make worker       Собрать C++ worker"
 	@echo "  make backend      Собрать Drogon API"
 	@echo "  make all          Собрать worker и API"
+	@echo "  make frontend     Собрать React-интерфейс"
+	@echo "  make frontend-lint Проверить React линтером"
+	@echo "  make desktop      Собрать macOS-приложение Tauri"
 	@echo "  make run-worker   Собрать и запустить worker"
 	@echo "  make run-backend  Собрать и запустить API"
 	@echo "  make clean        Удалить каталог build"
