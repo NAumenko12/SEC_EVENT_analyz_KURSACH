@@ -21,3 +21,4 @@ data/uploads/
 # Temporary files
 *.tmp
 *.swp
+.env.example
