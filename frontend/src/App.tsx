@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { apiRequest } from './api/client'
+import { AuthScreen } from './auth/AuthScreen'
+import type { AuthSession } from './auth/types'
 import './App.css'
 
 type SourceType = {
@@ -8,14 +11,28 @@ type SourceType = {
   description: string | null
 }
 
+type JobStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled'
+
 type CreatedJob = {
   uploadId: number
   jobId: number
-  status: 'queued'
+  status: JobStatus
+  progress: number
+  processedRecords: number
+  eventsCreated: number
+  findingsCreated: number
+  errorMessage: string | null
 }
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8080/api'
+type JobResponse = Omit<CreatedJob, 'jobId'> & { id: number }
+
+const jobStatusLabels: Record<JobStatus, string> = {
+  queued: 'Ожидает обработки',
+  processing: 'Анализируется',
+  completed: 'Завершено',
+  failed: 'Ошибка',
+  cancelled: 'Отменено',
+}
 
 const acceptedExtensions: Record<string, string> = {
   auth_log: '.log,.txt',
@@ -24,7 +41,12 @@ const acceptedExtensions: Record<string, string> = {
   pcap: '.pcap,.pcapng',
 }
 
-function App() {
+type AnalyzerAppProps = {
+  session: AuthSession
+  onLogout: () => void
+}
+
+function AnalyzerApp({ session, onLogout }: AnalyzerAppProps) {
   const [sourceTypes, setSourceTypes] = useState<SourceType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -41,12 +63,11 @@ function App() {
     setError(null)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/source-types`)
-      if (!response.ok) {
-        throw new Error(`API вернуло статус ${response.status}`)
-      }
-
-      const data: SourceType[] = await response.json()
+      const data = await apiRequest<SourceType[]>(
+        '/source-types',
+        {},
+        session.token,
+      )
       setSourceTypes(data)
     } catch (requestError) {
       const message =
@@ -58,13 +79,46 @@ function App() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [session.token])
 
   useEffect(() => {
     // Первый запрос синхронизирует экран с внешним Drogon API.
     // oxlint-disable-next-line react/set-state-in-effect
     void loadSourceTypes()
   }, [loadSourceTypes])
+
+  useEffect(() => {
+    if ( !createdJob || createdJob.status === 'completed' || createdJob.status === 'failed' || createdJob.status === 'cancelled') {
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(async () => {
+      try {
+        const body = await apiRequest<JobResponse>(
+          `/jobs/${createdJob.jobId}`,
+          {},
+          session.token,
+        )
+        if (!cancelled) {
+          setCreatedJob({ ...body, jobId: body.id })
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setUploadError(
+            requestError instanceof Error
+              ? requestError.message
+              : 'Не удалось получить состояние задания',
+          )
+        }
+      }
+    }, 800)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [createdJob, session.token])
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -82,16 +136,19 @@ function App() {
     formData.append('file', selectedFile)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/uploads`, {
-        method: 'POST',
-        body: formData,
-      })
-      const body = (await response.json()) as CreatedJob & { message?: string }
-      if (!response.ok) {
-        throw new Error(body.message ?? `API вернуло статус ${response.status}`)
-      }
+      const body = await apiRequest<Pick<
+        CreatedJob,
+        'uploadId' | 'jobId' | 'status'
+      >>('/uploads', { method: 'POST', body: formData }, session.token)
 
-      setCreatedJob(body)
+      setCreatedJob({
+        ...body,
+        progress: 0,
+        processedRecords: 0,
+        eventsCreated: 0,
+        findingsCreated: 0,
+        errorMessage: null,
+      })
     } catch (requestError) {
       setUploadError(
         requestError instanceof Error
@@ -152,9 +209,24 @@ function App() {
               Выберите источник, чтобы подготовить новый анализ событий.
             </p>
           </div>
-          <div className="api-badge">
-            <span className={`status-dot ${error ? 'status-error' : ''}`} />
-            {error ? 'Нет соединения' : 'Drogon API'}
+          <div className="user-controls">
+            <div className="api-badge">
+              <span className={`status-dot ${error ? 'status-error' : ''}`} />
+              {session.user.username}
+            </div>
+            <button
+              className="logout-button"
+              type="button"
+              onClick={() => {
+                void apiRequest<void>(
+                  '/auth/logout',
+                  { method: 'POST' },
+                  session.token,
+                ).finally(onLogout)
+              }}
+            >
+              Выйти
+            </button>
           </div>
         </header>
 
@@ -171,7 +243,7 @@ function App() {
           </article>
           <article className="summary-card">
             <span>Находки</span>
-            <strong>0</strong>
+            <strong>{createdJob?.findingsCreated ?? 0}</strong>
             <small>требуют внимания</small>
           </article>
         </section>
@@ -325,15 +397,39 @@ function App() {
           )}
 
           {createdJob && (
-            <div className="upload-message upload-message-success" role="status">
-              Задание №{createdJob.jobId} создано. Файл зарегистрирован как
-              загрузка №{createdJob.uploadId}.
+            <div
+              className={`upload-message ${
+                createdJob.status === 'failed'
+                  ? 'upload-message-error'
+                  : 'upload-message-success'
+              }`}
+              role="status"
+            >
+              <strong>
+                Задание №{createdJob.jobId}: {jobStatusLabels[createdJob.status]}
+              </strong>
+              <progress max="100" value={createdJob.progress} />
+              <span>
+                Прогресс: {createdJob.progress}% · обработано записей:{' '}
+                {createdJob.processedRecords} · создано событий:{' '}
+                {createdJob.eventsCreated} · находок: {createdJob.findingsCreated}
+              </span>
+              {createdJob.errorMessage && <span>{createdJob.errorMessage}</span>}
             </div>
           )}
         </section>
       </main>
     </div>
   )
+}
+
+function App() {
+  const [session, setSession] = useState<AuthSession | null>(null)
+
+  if (session === null) {
+    return <AuthScreen onAuthenticated={setSession} />
+  }
+  return <AnalyzerApp session={session} onLogout={() => setSession(null)} />
 }
 
 export default App

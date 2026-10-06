@@ -6,6 +6,9 @@
 - [Архитектура](architecture.md) — взаимодействие desktop-клиента, API, Kafka,
   worker и PostgreSQL.
 - [HTTP API](api.md) — endpoints, параметры и ответы.
+- [Безопасность](security.md) — пароли, сессии, SQL-запросы и загрузка файлов.
+- [Парсинг событий](parsing.md) — преобразование Linux `auth.log` в события.
+- [Правила обнаружения](detection.md) — поиск атак и создание findings.
 - [База данных](database.md) — устройство и применение реляционной схемы.
 - [Десктопный клиент](desktop-client.md) — роль React и Tauri.
 - [Текущее состояние](progress.md) — реализованные части и ближайший этап.

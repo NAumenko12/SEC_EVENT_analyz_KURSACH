@@ -15,6 +15,9 @@ C++ API на Drogon, PostgreSQL, Apache Kafka и отдельным C++ worker.
 - [Обзор проекта](docs/overview.md);
 - [Архитектура](docs/architecture.md);
 - [HTTP API](docs/api.md);
+- [Безопасность](docs/security.md);
+- [Парсинг событий](docs/parsing.md);
+- [Правила обнаружения](docs/detection.md);
 - [База данных](docs/database.md);
 - [Десктопный клиент](docs/desktop-client.md);
 - [Текущее состояние](docs/progress.md).
